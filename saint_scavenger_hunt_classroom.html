@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Rallye des Saints - Chasse aux Indices</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Inter:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- PDF.js for rendering uploaded PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        .font-playful {
+            font-family: 'Fredoka', 'Comic Neue', cursive;
+        }
+        .wood-floor {
+            background-color: #8D5B4C;
+            background-image: radial-gradient(#A06B5B 15%, transparent 16%), radial-gradient(#7B4D3E 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+        }
+        .classroom-wall {
+            background: linear-gradient(180deg, #3B82F6 0%, #60A5FA 70%, #93C5FD 100%);
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .poster-card {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .poster-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="no-print bg-slate-800 text-white border-b border-slate-700 px-4 py-2.5 flex items-center justify-between z-20 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="bg-amber-500 text-slate-900 p-2 rounded-xl flex items-center justify-center font-bold shadow">
+                <i class="fa-solid fa-cross text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-playful text-xl font-bold tracking-wide text-amber-400">Le Rallye des Saints</h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Regarde les affiches de la classe et trouve les réponses !</p>
+            </div>
+        </div>
+
+        <!-- Central Stats & Controls -->
+        <div class="flex items-center gap-3 md:gap-6">
+            <!-- Student Name Badge -->
+            <div class="bg-slate-700/80 rounded-lg px-3 py-1.5 flex items-center gap-2 border border-slate-600">
+                <i class="fa-solid fa-user-graduate text-amber-400"></i>
+                <span id="player-display-name" class="font-semibold text-xs md:text-sm text-slate-200">Élève</span>
+                <button onclick="promptStudentName()" class="text-xs text-slate-400 hover:text-white underline ml-1" title="Changer le nom">Changer</button>
+            </div>
+
+            <!-- Timer Display -->
+            <div class="bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2 text-amber-300 font-mono text-sm shadow-inner">
+                <i class="fa-regular fa-clock text-amber-400"></i>
+                <span id="game-timer">00:00</span>
+            </div>
+
+            <!-- Leaderboard Button -->
+            <button onclick="openModal('leaderboard-modal')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-trophy text-yellow-300"></i>
+                <span class="hidden md:inline">Classement</span>
+            </button>
+
+            <!-- Substitute Teacher Dashboard Toggle -->
+            <button onclick="toggleTeacherPanel()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition flex items-center gap-1.5 shadow border border-amber-400/30">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <span class="hidden md:inline">Espace Enseignant</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+        <!-- CLASSROOM GALLERY INTERACTIVE VIEW (LEFT / CENTER) -->
+        <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
+            <!-- Classroom Header Banner -->
+            <div class="no-print bg-slate-800/90 backdrop-blur border-b border-slate-700 px-4 py-2 flex items-center justify-between text-xs text-slate-300 z-10">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass text-amber-400 animate-bounce"></i>
+                    Clique sur une affiche pour la lire en grand !
+                </span>
+                <div class="flex items-center gap-2">
+                    <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium border border-emerald-500/30">
+                        <i class="fa-solid fa-circle text-[8px] mr-1 text-emerald-400"></i> Classe Virtuelle
+                    </span>
+                </div>
+            </div>
+
+            <!-- Virtual 2D Classroom Wall Canvas Container -->
+            <div id="classroom-viewport" class="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col justify-between classroom-wall relative shadow-inner">
+                
+                <!-- Chalkboard Header -->
+                <div class="w-full max-w-6xl mx-auto mb-6 flex items-center justify-between bg-slate-800 border-4 border-amber-900 rounded-lg p-3 shadow-2xl relative z-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-white border-2 border-slate-700 flex items-center justify-center font-bold text-slate-800 text-xs shadow">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <p class="font-playful text-amber-300 text-base md:text-lg font-bold leading-tight">Bienvenue au Rallye des Saints !</p>
+                            <p class="text-slate-300 text-xs">Lis attentivement chaque affiche pour répondre aux questions dans le panneau de droite.</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 text-slate-300 px-3 py-1 rounded border border-slate-700 text-xs hidden sm:block">
+                        <i class="fa-solid fa-school text-amber-400 mr-1"></i> Salle de Classe
+                    </div>
+                </div>
+
+                <!-- POSTERS DISPLAY GRID -->
+                <div id="posters-grid" class="w-full max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 my-auto z-10">
+                    <!-- Dynamic Posters rendered by JS -->
+                </div>
+
+                <!-- Classroom Floor -->
+                <div class="w-full mt-8 border-t-8 border-amber-950 pt-4 pb-2 wood-floor rounded-b-xl shadow-2xl flex justify-between items-center px-6">
+                    <div class="bg-amber-900/80 text-amber-100 text-xs px-3 py-1 rounded border border-amber-700 shadow">
+                        <i class="fa-solid fa-book-bookmark mr-1"></i> Coin Lecture
+                    </div>
+                    <div class="bg-amber-900/80 text-amber-100 text-xs px-3 py-1 rounded border border-amber-700 shadow">
+                        <i class="fa-solid fa-palette mr-1"></i> Mur d'Exposition
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- SCAVENGER HUNT QUIZ WORKSHEET SIDEBAR (RIGHT) -->
+        <aside class="no-print w-full md:w-96 bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col h-72 md:h-full z-20 shadow-2xl">
+            <!-- Sidebar Header -->
+            <div class="bg-slate-100 p-4 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                    <h2 class="font-playful text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-question text-indigo-600"></i> Questionnaire
+                    </h2>
+                    <p class="text-xs text-slate-500">Trouve les réponses sur les affiches !</p>
+                </div>
+                <!-- Score Indicator -->
+                <div class="text-right">
+                    <span id="score-badge" class="bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold text-sm px-2.5 py-1 rounded-full">
+                        0 / 0
+                    </span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-200 h-2">
+                <div id="progress-bar" class="bg-emerald-500 h-2 transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Questions Scrollable List -->
+            <div id="questions-list" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Questions injected dynamically by JS -->
+            </div>
+
+            <!-- Submit Final Worksheet Button -->
+            <div class="p-4 bg-slate-50 border-t border-slate-200">
+                <button id="submit-hunt-btn" onclick="submitScavengerHunt()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base">
+                    <i class="fa-solid fa-paper-plane"></i> Soumettre mes réponses !
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- POSTER DETAILED ZOOM MODAL -->
+    <div id="poster-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden transition-opacity">
+        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 transform transition-all">
+            <!-- Modal Header -->
+            <div class="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="bg-amber-500 text-slate-900 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">Affiche du Saint</span>
+                    <h3 id="modal-saint-name" class="font-playful text-xl font-bold text-amber-300">Nom du Saint</h3>
+                </div>
+                <button onclick="closeModal('poster-modal')" class="text-slate-400 hover:text-white text-2xl font-bold focus:outline-none">&times;</button>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6 bg-amber-50/30">
+                <!-- Poster Image -->
+                <div class="md:col-span-5 flex flex-col items-center justify-center bg-amber-100/50 p-4 rounded-xl border-2 border-dashed border-amber-300 shadow-inner">
+                    <div id="modal-image-container" class="relative w-full h-64 md:h-80 flex items-center justify-center overflow-hidden rounded-lg bg-white shadow">
+                        <img id="modal-poster-img" src="" alt="Affiche du saint" class="max-h-full max-w-full object-contain">
+                        <canvas id="pdf-canvas" class="hidden max-h-full max-w-full object-contain"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-2 text-center"><i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Lis bien les détails pour le questionnaire !</p>
+                </div>
+
+                <!-- Poster Data Details -->
+                <div class="md:col-span-7 flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span id="modal-feast-day" class="bg-indigo-100 text-indigo-800 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-200">
+                                <i class="fa-regular fa-calendar-check mr-1"></i> Fête : --
+                            </span>
+                            <span id="modal-patron" class="bg-emerald-100 text-emerald-800 text-xs px-3 py-1 rounded-full font-semibold border border-emerald-200">
+                                <i class="fa-solid fa-shield-halved mr-1"></i> Patron : --
+                            </span>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-3">
+                            <h4 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-1">Symboles principaux</h4>
+                            <p id="modal-symbols" class="text-sm font-semibold text-slate-700">--</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-3">
+                            <h4 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-1">Histoire et faits simples</h4>
+                            <p id="modal-facts" class="text-sm text-slate-600 leading-relaxed">--</p>
+                        </div>
+
+                        <div class="bg-amber-100/80 p-3.5 rounded-xl border-l-4 border-amber-500 text-amber-900 italic text-sm">
+                            « <span id="modal-quote">--</span> »
+                        </div>
+                    </div>
+
+                    <!-- Jump to Related Question Button -->
+                    <button id="modal-find-question-btn" onclick="highlightRelatedQuestion()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-arrow-right-to-bracket text-amber-400"></i> Trouver la question liée
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEADERBOARD MODAL -->
+    <div id="leaderboard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-500 text-2xl"></i>
+                    <h3 class="font-playful text-xl font-bold text-slate-800">Classement de la classe</h3>
+                </div>
+                <button onclick="closeModal('leaderboard-modal')" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Podium Visual -->
+            <div class="my-6 grid grid-cols-3 gap-2 text-center items-end pt-4">
+                <div class="bg-slate-100 p-2 rounded-t-lg border-t-4 border-slate-400 flex flex-col items-center">
+                    <span class="text-slate-400 font-bold text-lg">2e</span>
+                    <span id="podium-2-name" class="text-xs font-bold text-slate-700 truncate w-full">---</span>
+                    <span id="podium-2-time" class="text-[10px] text-slate-500">--:--</span>
+                </div>
+                <div class="bg-amber-100 p-3 rounded-t-lg border-t-4 border-amber-500 flex flex-col items-center -mt-4 shadow">
+                    <i class="fa-solid fa-crown text-amber-500 text-xl mb-1 animate-bounce"></i>
+                    <span class="text-amber-700 font-extrabold text-xl">1er</span>
+                    <span id="podium-1-name" class="text-xs font-extrabold text-slate-800 truncate w-full">---</span>
+                    <span id="podium-1-time" class="text-[10px] text-amber-800 font-bold">--:--</span>
+                </div>
+                <div class="bg-amber-800/10 p-2 rounded-t-lg border-t-4 border-amber-700 flex flex-col items-center">
+                    <span class="text-amber-800 font-bold text-lg">3e</span>
+                    <span id="podium-3-name" class="text-xs font-bold text-slate-700 truncate w-full">---</span>
+                    <span id="podium-3-time" class="text-[10px] text-slate-500">--:--</span>
+                </div>
+            </div>
+
+            <!-- Top Rankings Table -->
+            <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                        <tr>
+                            <th class="p-2.5">Rang</th>
+                            <th class="p-2.5">Élève</th>
+                            <th class="p-2.5">Score</th>
+                            <th class="p-2.5 text-right">Temps</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-tbody" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- Leaderboard Rows generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('leaderboard-modal')" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 px-5 rounded-lg">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUPPLY TEACHER MANAGEMENT PANEL -->
+    <div id="teacher-panel" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex justify-end">
+        <div class="bg-white w-full max-w-md h-full shadow-2xl flex flex-col border-l border-slate-200 overflow-hidden">
+            <!-- Header -->
+            <div class="bg-amber-600 text-white p-5 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-chalkboard-user text-2xl"></i>
+                    <div>
+                        <h3 class="font-playful text-lg font-bold">Espace Enseignant / Suppléant</h3>
+                        <p class="text-xs text-amber-100">Gestion de la classe et des affiches</p>
+                    </div>
+                </div>
+                <button onclick="toggleTeacherPanel()" class="text-white hover:text-amber-200 text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Body Tabs -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-6 text-sm text-slate-700">
+                
+                <!-- Quick Instructions -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <h4 class="font-bold text-amber-900 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info"></i> Consignes rapides :
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-1.5 text-xs text-amber-800 leading-relaxed">
+                        <li>Les élèves observent les affiches sur le mur interactif.</li>
+                        <li>Ils répondent aux questions dans le menu à droite.</li>
+                        <li>Les meilleurs scores apparaissent sur le podium.</li>
+                        <li>Vous pouvez aussi imprimer le questionnaire sur papier !</li>
+                    </ol>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Outils de l'enseignant</h4>
+                    
+                    <!-- Toggle Answer Key -->
+                    <button onclick="toggleAnswerKey()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-between transition">
+                        <span><i class="fa-solid fa-key text-amber-600 mr-2"></i> Afficher / Masquer le corrigé</span>
+                        <span id="answer-key-status" class="bg-slate-300 text-slate-700 text-[10px] px-2 py-0.5 rounded font-mono">NON</span>
+                    </button>
+
+                    <!-- Print Paper Worksheet -->
+                    <button onclick="window.print()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-between transition">
+                        <span><i class="fa-solid fa-print text-indigo-600 mr-2"></i> Imprimer la fiche papier (Hors-ligne)</span>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
+                    </button>
+
+                    <!-- Reset Leaderboard -->
+                    <button onclick="resetLeaderboard()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-between transition">
+                        <span><i class="fa-solid fa-rotate-left mr-2"></i> Réinitialiser le classement</span>
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Custom Poster Uploader -->
+                <div class="border-t border-slate-200 pt-5">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Ajouter les affiches des élèves</h4>
+                    <p class="text-xs text-slate-500 mb-3">Téléversez des images (PNG, JPG) ou PDF créés par vos élèves pour les ajouter au mur !</p>
+                    
+                    <form id="upload-poster-form" onsubmit="handleCustomPosterUpload(event)" class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nom du Saint</label>
+                            <input type="text" id="upload-saint-name" placeholder="ex: Sainte Kateri Tekakwitha" required class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Date de la fête</label>
+                            <input type="text" id="upload-feast" placeholder="ex: 14 juillet" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Patron des...</label>
+                            <input type="text" id="upload-patron" placeholder="ex: l'environnement, la nature" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Fichier de l'affiche (Image ou PDF)</label>
+                            <input type="file" id="upload-file" accept="image/*,.pdf" required class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200">
+                        </div>
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition shadow">
+                            <i class="fa-solid fa-plus-circle mr-1"></i> Ajouter l'affiche au mur
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 bg-slate-100 border-t border-slate-200 text-center text-xs text-slate-500">
+                Rallye des Saints - Français Facile
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINTABLE PAPER WORKSHEET (PRINT-ONLY VIEW) -->
+    <div class="print-only p-8 bg-white text-slate-900">
+        <div class="text-center border-b-2 border-slate-800 pb-4 mb-6">
+            <h1 class="text-2xl font-bold uppercase tracking-wide">Le Rallye des Saints - Questionnaire</h1>
+            <p class="text-sm text-slate-600">Nom : ________________________ &nbsp;&nbsp; Date : ______________ &nbsp;&nbsp; Classe : ________</p>
+        </div>
+
+        <p class="text-xs mb-6 italic">Consigne : Regarde les affiches des saints dans la classe et réponds aux questions ci-dessous.</p>
+
+        <div id="print-questions-container" class="space-y-6 text-sm">
+            <!-- Injected by JS for Print -->
+        </div>
+    </div>
+
+    <!-- AUDIO & JAVASCRIPT LOGIC -->
+    <script>
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playCorrect() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            },
+            playWin() {
+                this.init();
+                const notes = [400, 500, 600, 800];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.1 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.1);
+                    osc.stop(this.ctx.currentTime + idx * 0.1 + 0.25);
+                });
+            }
+        };
+
+        // --- APP DATA IN SIMPLE FRENCH ---
+        let studentName = "Élève_" + Math.floor(100 + Math.random() * 900);
+        let startTime = Date.now();
+        let timerInterval = null;
+        let elapsedSeconds = 0;
+        let currentActivePosterId = null;
+        let isAnswerKeyVisible = false;
+
+        // Simple French Posters Database
+        let posters = [
+            {
+                id: "saint-francis",
+                name: "Saint François d'Assise",
+                feastDay: "4 octobre",
+                patronage: "Les animaux, l'environnement",
+                symbols: "Oiseaux, loups, robe marron de moine",
+                facts: "Saint François aimait beaucoup la nature et tous les animaux. Il parlait doucement aux oiseaux et aidait les pauvres.",
+                quote: "Fais briller l'amour là où il y a la haine.",
+                bgGradient: "from-amber-600 to-amber-800",
+                svgIcon: `<svg class="w-16 h-16 text-amber-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a2 2 0 110 4 2 2 0 010-4zm-4 13c0-2.21 1.79-4 4-4s4 1.79 4 4H8z"/></svg>`
+            },
+            {
+                id: "saint-joan",
+                name: "Sainte Jeanne d'Arc",
+                feastDay: "30 mai",
+                patronage: "La France, les soldats",
+                symbols: "Armure de chevalier, épée, drapeau blanc",
+                facts: "Une jeune fille très courageuse née en France. Elle a guidé les armées avec foi et courage pour protéger son pays.",
+                quote: "Je n'ai pas peur, je suis née pour cela.",
+                bgGradient: "from-blue-600 to-slate-800",
+                svgIcon: `<svg class="w-16 h-16 text-blue-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>`
+            },
+            {
+                id: "saint-patrick",
+                name: "Saint Patrick",
+                feastDay: "17 mars",
+                patronage: "L'Irlande",
+                symbols: "Le trèfle vert à 3 feuilles, la crosse",
+                facts: "Il a voyagé en Irlande pour parler de Dieu. Il utilisait un trèfle vert à 3 feuilles pour expliquer la Sainte Trinité.",
+                quote: "Que Dieu soit avec toi tous les jours.",
+                bgGradient: "from-emerald-600 to-emerald-800",
+                svgIcon: `<svg class="w-16 h-16 text-emerald-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3c0 1.66 1.34 3 3 3s3-1.34 3-3a3 3 0 00-3-3zm-5 7a3 3 0 00-3 3c0 1.66 1.34 3 3 3s3-1.34 3-3a3 3 0 00-3-3zm10 0a3 3 0 00-3 3c0 1.66 1.34 3 3 3s3-1.34 3-3a3 3 0 00-3-3z"/></svg>`
+            },
+            {
+                id: "saint-therese",
+                name: "Sainte Thérèse de Lisieux",
+                feastDay: "1er octobre",
+                patronage: "Les fleurs, les missionnaires",
+                symbols: "Les roses rouges, la croix",
+                facts: "Appelée 'La Petite Fleur'. Elle montrait qu'on peut faire de petites choses simples tous les jours avec beaucoup d'amour.",
+                quote: "Fais les petites choses avec un grand amour.",
+                bgGradient: "from-rose-500 to-pink-700",
+                svgIcon: `<svg class="w-16 h-16 text-rose-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>`
+            },
+            {
+                id: "saint-anthony",
+                name: "Saint Antoine de Padoue",
+                feastDay: "13 juin",
+                patronage: "Les objets perdus, les voyageurs",
+                symbols: "L'Enfant Jésus, le livre, le lys blanc",
+                facts: "Saint Antoine est très célèbre ! On le prie souvent quand on cherche un objet perdu dans la maison ou à l'école.",
+                quote: "Que tes actions parlent plus fort que tes mots.",
+                bgGradient: "from-yellow-600 to-amber-900",
+                svgIcon: `<svg class="w-16 h-16 text-yellow-200" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-1.5L9 9V4z"/></svg>`
+            },
+            {
+                id: "saint-jude",
+                name: "Saint Jude Thaddée",
+                feastDay: "28 octobre",
+                patronage: "Les causes difficiles",
+                symbols: "Petite flamme au-dessus de la tête, l'image de Jésus",
+                facts: "Un des 12 apôtres proches de Jésus. On prie Saint Jude quand une situation est très difficile ou semble impossible.",
+                quote: "Garde toujours l'espoir et la foi.",
+                bgGradient: "from-teal-600 to-cyan-800",
+                svgIcon: `<svg class="w-16 h-16 text-teal-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z"/></svg>`
+            }
+        ];
+
+        // Simple French Scavenger Questions
+        let questions = [
+            {
+                id: "q1",
+                relatedPosterId: "saint-francis",
+                questionText: "Quel saint protège les animaux et la nature ?",
+                options: ["Saint Patrick", "Saint François d'Assise", "Saint Antoine", "Saint Jude"],
+                correctIndex: 1
+            },
+            {
+                id: "q2",
+                relatedPosterId: "saint-joan",
+                questionText: "Quel symbole porte Sainte Jeanne d'Arc sur son affiche ?",
+                options: ["Une armure de chevalier", "Un panier de fruits", "Un violon", "Un grand livre"],
+                correctIndex: 0
+            },
+            {
+                id: "q3",
+                relatedPosterId: "saint-patrick",
+                questionText: "Quel végétal vert à 3 feuilles est le symbole de Saint Patrick ?",
+                options: ["Une rose", "Une feuille d'érable", "Un trèfle", "Un sapin"],
+                correctIndex: 2
+            },
+            {
+                id: "q4",
+                relatedPosterId: "saint-therese",
+                questionText: "Quel est le surnom affectueux de Sainte Thérèse ?",
+                options: ["La Petite Fleur", "La Reine des Neiges", "La Grande Étoile", "La Colombe"],
+                correctIndex: 0
+            },
+            {
+                id: "q5",
+                relatedPosterId: "saint-anthony",
+                questionText: "Pourquoi prie-t-on souvent Saint Antoine ?",
+                options: ["Pour gagner une course", "Pour retrouver un objet perdu", "Pour apprendre la guitare", "Pour faire de la peinture"],
+                correctIndex: 1
+            },
+            {
+                id: "q6",
+                relatedPosterId: "saint-jude",
+                questionText: "À quelle date fête-t-on la Saint Jude ?",
+                options: ["17 mars", "28 octobre", "25 décembre", "1er janvier"],
+                correctIndex: 1
+            }
+        ];
+
+        let studentAnswers = {};
+
+        let leaderboardData = [
+            { name: "Marie L.", score: 6, time: "01:10", timestamp: 1 },
+            { name: "Lucas P.", score: 6, time: "01:35", timestamp: 2 },
+            { name: "Élodie B.", score: 5, time: "02:00", timestamp: 3 }
+        ];
+
+        // --- CORE FUNCTIONS ---
+
+        function renderClassroomPosters() {
+            const grid = document.getElementById("posters-grid");
+            grid.innerHTML = "";
+
+            posters.forEach((p, idx) => {
+                const posterDiv = document.createElement("div");
+                posterDiv.className = `poster-card cursor-pointer rounded-xl bg-gradient-to-br ${p.bgGradient} p-3 text-white shadow-xl border-4 border-amber-900/60 relative flex flex-col justify-between items-center h-52 text-center group`;
+                posterDiv.onclick = () => openPosterModal(p.id);
+
+                const pin = `<div class="absolute -top-3 w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow"></div>`;
+
+                let contentInner = '';
+                if (p.customImageData) {
+                    contentInner = `<img src="${p.customImageData}" class="w-full h-28 object-contain rounded my-auto bg-black/20 p-1">`;
+                } else {
+                    contentInner = `<div class="my-auto transform group-hover:scale-110 transition duration-300">${p.svgIcon}</div>`;
+                }
+
+                posterDiv.innerHTML = `
+                    ${pin}
+                    <div class="text-[10px] uppercase font-black tracking-widest text-amber-200 bg-black/30 px-2 py-0.5 rounded-full mb-1">
+                        Affiche #${idx + 1}
+                    </div>
+                    ${contentInner}
+                    <div class="w-full bg-slate-900/80 backdrop-blur rounded-lg p-1.5 border border-white/20">
+                        <p class="font-playful font-bold text-xs truncate text-amber-300">${p.name}</p>
+                        <p class="text-[10px] text-slate-300 truncate">Fête : ${p.feastDay || '---'}</p>
+                    </div>
+                `;
+
+                grid.appendChild(posterDiv);
+            });
+        }
+
+        function renderQuestionsList() {
+            const list = document.getElementById("questions-list");
+            list.innerHTML = "";
+
+            questions.forEach((q, idx) => {
+                const isAnswered = studentAnswers[q.id] !== undefined;
+                const card = document.createElement("div");
+                card.id = `q-card-${q.id}`;
+                card.className = `p-3.5 rounded-xl border transition-all ${isAnswered ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-200 shadow-sm'}`;
+
+                let optionsHtml = q.options.map((opt, oIdx) => {
+                    const isSelected = studentAnswers[q.id] === oIdx;
+                    return `
+                        <label class="flex items-center gap-2 p-2 rounded-lg border cursor-pointer text-xs transition ${isSelected ? 'bg-indigo-600 text-white font-bold border-indigo-600' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                            <input type="radio" name="q_${q.id}" value="${oIdx}" ${isSelected ? 'checked' : ''} onchange="selectAnswer('${q.id}', ${oIdx})" class="hidden">
+                            <span class="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
+                                ${isSelected ? '<i class="fa-solid fa-check"></i>' : String.fromCharCode(65 + oIdx)}
+                            </span>
+                            <span>${opt}</span>
+                        </label>
+                    `;
+                }).join("");
+
+                let answerKeyDisplay = "";
+                if (isAnswerKeyVisible) {
+                    answerKeyDisplay = `<div class="mt-2 text-[11px] font-bold text-emerald-700 bg-emerald-100 p-1.5 rounded border border-emerald-300">
+                        <i class="fa-solid fa-key mr-1"></i> Bonne réponse : ${q.options[q.correctIndex]}
+                    </div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <span class="text-xs font-black text-slate-400">Q${idx + 1}</span>
+                        <p class="text-xs font-semibold text-slate-800 leading-snug flex-1">${q.questionText}</p>
+                    </div>
+                    <div class="space-y-1.5 mt-2">
+                        ${optionsHtml}
+                    </div>
+                    ${answerKeyDisplay}
+                `;
+
+                list.appendChild(card);
+            });
+
+            updateScoreBadge();
+            renderPrintableWorksheet();
+        }
+
+        function renderPrintableWorksheet() {
+            const printContainer = document.getElementById("print-questions-container");
+            printContainer.innerHTML = "";
+
+            questions.forEach((q, idx) => {
+                const div = document.createElement("div");
+                div.className = "border-b pb-4";
+                div.innerHTML = `
+                    <p class="font-bold text-slate-800 mb-2">${idx + 1}. ${q.questionText}</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-700">
+                        ${q.options.map((opt, oIdx) => `<div>[ &nbsp; ] (${String.fromCharCode(65 + oIdx)}) ${opt}</div>`).join('')}
+                    </div>
+                `;
+                printContainer.appendChild(div);
+            });
+        }
+
+        function selectAnswer(questionId, optionIndex) {
+            studentAnswers[questionId] = optionIndex;
+            AudioFX.playCorrect();
+            renderQuestionsList();
+        }
+
+        function updateScoreBadge() {
+            const total = questions.length;
+            const answeredCount = Object.keys(studentAnswers).length;
+            const badge = document.getElementById("score-badge");
+            const progressBar = document.getElementById("progress-bar");
+
+            badge.innerText = `${answeredCount} / ${total} Répondus`;
+            const pct = (answeredCount / total) * 100;
+            progressBar.style.width = `${pct}%`;
+        }
+
+        function openPosterModal(posterId) {
+            currentActivePosterId = posterId;
+            const p = posters.find(item => item.id === posterId);
+            if (!p) return;
+
+            document.getElementById("modal-saint-name").innerText = p.name;
+            document.getElementById("modal-feast-day").innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i> Fête : ${p.feastDay || 'N/A'}`;
+            document.getElementById("modal-patron").innerHTML = `<i class="fa-solid fa-shield-halved mr-1"></i> Patron : ${p.patronage || 'N/A'}`;
+            document.getElementById("modal-symbols").innerText = p.symbols || 'Standard';
+            document.getElementById("modal-facts").innerText = p.facts || 'Aucune description disponible.';
+            document.getElementById("modal-quote").innerText = p.quote || 'Fais le bien autour de toi.';
+
+            const imgEl = document.getElementById("modal-poster-img");
+            const canvasEl = document.getElementById("pdf-canvas");
+
+            if (p.customImageData) {
+                imgEl.src = p.customImageData;
+                imgEl.classList.remove("hidden");
+                canvasEl.classList.add("hidden");
+            } else {
+                imgEl.src = `https://placehold.co/400x500/3b82f6/ffffff?text=${encodeURIComponent(p.name)}`;
+                imgEl.classList.remove("hidden");
+                canvasEl.classList.add("hidden");
+            }
+
+            openModal("poster-modal");
+        }
+
+        function highlightRelatedQuestion() {
+            closeModal("poster-modal");
+            const related = questions.find(q => q.relatedPosterId === currentActivePosterId);
+            if (related) {
+                const card = document.getElementById(`q-card-${related.id}`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('ring-4', 'ring-amber-400');
+                    setTimeout(() => card.classList.remove('ring-4', 'ring-amber-400'), 2500);
+                }
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove("hidden");
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add("hidden");
+        }
+
+        function submitScavengerHunt() {
+            const total = questions.length;
+            const answeredCount = Object.keys(studentAnswers).length;
+
+            if (answeredCount < total) {
+                alert(`Réponds à toutes les ${total} questions avant de soumettre ! (${answeredCount}/${total} faites)`);
+                return;
+            }
+
+            let score = 0;
+            questions.forEach(q => {
+                if (studentAnswers[q.id] === q.correctIndex) {
+                    score++;
+                }
+            });
+
+            const timeFormatted = document.getElementById("game-timer").innerText;
+
+            leaderboardData.push({
+                name: studentName,
+                score: score,
+                time: timeFormatted,
+                timestamp: Date.now()
+            });
+
+            leaderboardData.sort((a, b) => b.score - a.score || a.time.localeCompare(b.time));
+
+            renderLeaderboard();
+            AudioFX.playWin();
+
+            if (window.confetti) {
+                confetti({
+                    particleCount: 120,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            openModal("leaderboard-modal");
+        }
+
+        function renderLeaderboard() {
+            const tbody = document.getElementById("leaderboard-tbody");
+            tbody.innerHTML = "";
+
+            leaderboardData.slice(0, 10).forEach((entry, idx) => {
+                const tr = document.createElement("tr");
+                tr.className = idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold text-slate-500">#${idx + 1}</td>
+                    <td class="p-2.5 font-semibold text-slate-800">${entry.name}</td>
+                    <td class="p-2.5 font-bold text-indigo-600">${entry.score}/${questions.length}</td>
+                    <td class="p-2.5 text-right font-mono text-slate-500">${entry.time}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (leaderboardData[0]) {
+                document.getElementById("podium-1-name").innerText = leaderboardData[0].name;
+                document.getElementById("podium-1-time").innerText = `${leaderboardData[0].score}/${questions.length} (${leaderboardData[0].time})`;
+            }
+            if (leaderboardData[1]) {
+                document.getElementById("podium-2-name").innerText = leaderboardData[1].name;
+                document.getElementById("podium-2-time").innerText = `${leaderboardData[1].score}/${questions.length} (${leaderboardData[1].time})`;
+            }
+            if (leaderboardData[2]) {
+                document.getElementById("podium-3-name").innerText = leaderboardData[2].name;
+                document.getElementById("podium-3-time").innerText = `${leaderboardData[2].score}/${questions.length} (${leaderboardData[2].time})`;
+            }
+        }
+
+        function toggleTeacherPanel() {
+            const panel = document.getElementById("teacher-panel");
+            panel.classList.toggle("hidden");
+        }
+
+        function toggleAnswerKey() {
+            isAnswerKeyVisible = !isAnswerKeyVisible;
+            document.getElementById("answer-key-status").innerText = isAnswerKeyVisible ? "OUI" : "NON";
+            document.getElementById("answer-key-status").className = isAnswerKeyVisible ? "bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-mono" : "bg-slate-300 text-slate-700 text-[10px] px-2 py-0.5 rounded font-mono";
+            renderQuestionsList();
+        }
+
+        function resetLeaderboard() {
+            if (confirm("Voulez-vous réinitialiser le classement de la classe ?")) {
+                leaderboardData = [];
+                renderLeaderboard();
+                alert("Classement réinitialisé !");
+            }
+        }
+
+        function handleCustomPosterUpload(e) {
+            e.preventDefault();
+            const name = document.getElementById("upload-saint-name").value.trim();
+            const feast = document.getElementById("upload-feast").value.trim();
+            const patron = document.getElementById("upload-patron").value.trim();
+            const fileInput = document.getElementById("upload-file");
+
+            if (!fileInput.files || fileInput.files.length === 0) return;
+
+            const file = fileInput.files[0];
+            const newId = "custom-poster-" + Date.now();
+
+            if (file.type === "application/pdf") {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    const typedarray = new Uint8Array(ev.target.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                        pdf.getPage(1).then(page => {
+                            const viewport = page.getViewport({ scale: 1.5 });
+                            const canvas = document.createElement("canvas");
+                            const ctx = canvas.getContext("2d");
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                                const dataUrl = canvas.toDataURL();
+                                addNewPosterEntry(newId, name, feast, patron, dataUrl);
+                            });
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    addNewPosterEntry(newId, name, feast, patron, ev.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function addNewPosterEntry(id, name, feast, patron, imageData) {
+            posters.push({
+                id: id,
+                name: name,
+                feastDay: feast || "Date de fête",
+                patronage: patron || "Patronage",
+                symbols: "Affiche préparée par un élève",
+                facts: "Nouvelle affiche ajoutée par la classe.",
+                quote: "Foi, Espérance et Amour.",
+                bgGradient: "from-indigo-600 to-purple-800",
+                customImageData: imageData
+            });
+
+            questions.push({
+                id: "q_custom_" + Date.now(),
+                relatedPosterId: id,
+                questionText: `Quel détail retrouve-t-on sur l'affiche de ${name} ?`,
+                options: [patron || "Information sur l'affiche", "La mer", "Les avions", "Les voitures"],
+                correctIndex: 0
+            });
+
+            renderClassroomPosters();
+            renderQuestionsList();
+            document.getElementById("upload-poster-form").reset();
+            alert(`L'affiche pour "${name}" a été ajoutée au mur de la classe !`);
+        }
+
+        function promptStudentName() {
+            const input = prompt("Entrez le prénom de l'élève ou de l'équipe :", studentName);
+            if (input && input.trim() !== "") {
+                studentName = input.trim();
+                document.getElementById("player-display-name").innerText = studentName;
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+                const secs = String(elapsedSeconds % 60).padStart(2, '0');
+                document.getElementById("game-timer").innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        window.onload = function () {
+            renderClassroomPosters();
+            renderQuestionsList();
+            renderLeaderboard();
+            startTimer();
+        };
+    </script>
+</body>
+</html>
